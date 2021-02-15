@@ -16,12 +16,13 @@ from utils.infer_sentiment import infer_sentiment
 from utils.summary import get_tfidf
 
 
-@app.before_first_request
-def before_first_req():
-  nltk.download('stopwords')
 
 app = Flask(__name__)
 CORS(app)
+
+@app.before_first_request
+def before_first_req():
+  nltk.download('stopwords')
 
 @app.route('/')
 def index():
@@ -30,43 +31,37 @@ def index():
 
 @app.route('/analyse', methods=['POST'])
 def analyse():
-
-  '''
-    1. Clean up text ✅
-    2. Stats ✅
-      1. Number of words ✅
-      2. Number of sentences ✅
-      3. Frequency of words ✅
-    3. Sentiment ✅
-    4. Summary
-  '''
+  
   STOPWORDS = stopwords.words('english')
-  data = request.json
-  text = data['text']
+  try: 
+    data = request.json
+    text = data['text']
+    
+    blob = TextBlob(text)
+    sentences = blob.sentences  
+    len_sentences = len(sentences)
   
-  blob = TextBlob(text)
+    filtered_words = filter_words(blob.words, STOPWORDS)
+    word_freq = Counter(filtered_words)
+    stopword_count = len(blob.words) - len(filtered_words)
+    tfidf, tf_words = get_tfidf(blob.sentences, len(blob.sentences), filtered_words, len(filtered_words), word_freq, STOPWORDS)
+    
+    
+    return jsonify({
+      'stats': {
+        'sentences': len_sentences,
+        'words': len(blob.words),
+        'word_count': word_freq,
+        'stopword_count': stopword_count
+      },
+      'sentiment': infer_sentiment(blob.sentiment.polarity),
+      'tfidf': {clean_sentence(k.string): v for k, v in tfidf.items()},
+      'tf_words': tf_words
+    })
+  except Exception as e:
+    return jsonify({'error': str(e)}), 400
+  
 
-  sentences = blob.sentences
-  
-  len_sentences = len(sentences)
-  
-  filtered_words = filter_words(blob.words, STOPWORDS)
-  word_freq = Counter(filtered_words)
-  stopword_count = len(blob.words) - len(filtered_words)
-  tfidf, tf_words = get_tfidf(blob.sentences, len(blob.sentences), filtered_words, len(filtered_words), word_freq, STOPWORDS)
-  
-  
-  return jsonify({
-    'stats': {
-      'sentences': len_sentences,
-      'words': len(blob.words),
-      'word_count': word_freq,
-      'stopword_count': stopword_count
-    },
-    'sentiment': infer_sentiment(blob.sentiment.polarity),
-    'tfidf': {clean_sentence(k.string): v for k, v in tfidf.items()},
-    'tf_words': tf_words
-  })
 
 if __name__ == '__main__':
   app.run(debug = True)

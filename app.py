@@ -1,17 +1,24 @@
+# Counter to count the word frequency
 from collections import Counter
 
 from flask import Flask, jsonify, request
+# CORS - https://en.wikipedia.org/wiki/Cross-origin_resource_sharing
 from flask_cors import CORS
+
+
 import nltk
 from nltk.corpus import stopwords
+
 from textblob import TextBlob
 
-from utils.infer_sentiment import infer_sentiment
 from utils.cleanup import filter_words, clean_sentence
+from utils.infer_sentiment import infer_sentiment
 from utils.summary import get_tfidf
 
-nltk.download('stopwords')
 
+@app.before_first_request
+def before_first_req():
+  nltk.download('stopwords')
 
 app = Flask(__name__)
 CORS(app)
